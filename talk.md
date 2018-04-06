@@ -1,25 +1,34 @@
-title: Úvod do jazyka Clojure/ClojureScript
+title: Clojure Full-stack aplikace
 author:
   name: Lukáš Rychtecký
-  twitter: lukasrychtecky
+  twitter: @lukasrychtecky
 controls: true
 style: style.css
 
 --
 
-# Úvod do jazyka Clojure a ClojureScript
+# Clojure Full-stack aplikace
 ## Lukáš Rychtecký
 ## [https://twitter.com/LukasRychtecky](https://twitter.com/LukasRychtecky)
 
 --
 
+### O mě
+
+* [https://twitter.com/LukasRychtecky](https://twitter.com/LukasRychtecky)
+* [https://github.com/LukasRychtecky](https://github.com/LukasRychtecky)
+
+--
+
 ### Osnova
 
-* Motivace
-* Trocha teorie
-* Syntaxe
-* Základy jazyka a příklady
-* ClojureScript - SPA
+* Úvod do funkcionálního programování
+* Clojure ekosystém
+* Architektura a dependency injection s Duct
+* DB a migrace s Duct
+* REST a Compojure
+* SPA s Re-frame a Reagent (development stack)
+* Funkční ukázka propojení všech technologií na příkladu
 
 --
 
@@ -144,6 +153,7 @@ Jak to otestujeme?
 * pokročilá práce s kolekcemi (vector, linked list, set, hashmap)
 * paralelní programování
 * lazy sekvence
+* praktický jazyk (side efekty)
 
 --
 
@@ -167,21 +177,36 @@ def foo(func):
 
 def bar(a, b):
     # do stuff
+    # ...
 
 foo(bar)
 ```
 
+```clojure
+(defn foo
+  [func]
+  (func 1 3))
+
+(defn bar
+  [a b]
+  ;; do stuff
+  ;; ...
+  )
+
+
+(foo bar)
 --
 
 ### Pure functions
 
 * funkce nemá žádné side effects (IO operace apod.)
 
-```python
-def count_items(result):
-    return len(result.items)
+```clojure
+(defn count-items
+  [result]
+  (count (:items result)))
 
-map(count_items, results)  # [1, 2, 4, 1]
+map(count-items results)  ;; [1, 2, 4, 1]
 ```
 
 --
@@ -241,6 +266,60 @@ Více třeba na [http://clojure-doc.org/articles/language/laziness.html](http://
 
 --
 
+### Clojure ekosystém
+
+* JVM - běhové prostředí
+* [Leiningen](https://leiningen.org) - build and management tool (de facto standard)
+* [Boot](https://github.com/boot-clj/boot) - build and management tool
+
+
+Oba nástroje mají stejné funkcionality:
+* dependency management
+* REPL
+* plugins
+* builds
+
+Více info na [https://www.braveclojure.com/appendix-a/](https://www.braveclojure.com/appendix-a/)
+
+ClojureScript
+
+* [Lumo](https://github.com/anmonteiro/lumo) - NodeJS
+
+--
+
+### Úkol č. 1
+
+Spusťte Leiningen REPL (`lein repl`)
+
+* Vypište všechna sudá čísla od 0 do 10
+* Napište funkci, která udělá sumu dané kolekce
+* Napište funkci, která udělá sumu druhé mocniny sudých čísel od 0 do 10
+
+Může se hodit - Clojure dokumentace [http://clojuredocs.org](http://clojuredocs.org/)
+
+--
+
+### Úkol č. 1 - Řešení
+
+Spusťte Leiningen REPL (`lein repl`)
+
+* Vypište všechna sudá čísla od 0 do 10
+* `(filter even? (range 10))` nebo `(remove odd? (range 10))` `(0 2 4 6 8)`
+* Napište funkci, která udělá sumu dané kolekce
+* `(defn sum [coll] (reduce + coll))` a `(sum (range 10))` `45`
+* Napište funkci, která udělá sumu druhé mocniny sudých čísel od 0 do 10
+* `(reduce + (map #(* % %) (filter even? (range 10))))` `120`
+* nebo čitelněji `(->> (range 10) (filter even?) (map #(* % %)) (reduce +))`
+
+--
+
+### Architektura a dependency injection s Duct
+
+`Duct` je dependency injection framework
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ### ClojureScript + ReactJS = Reagent
 

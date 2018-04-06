@@ -1,0 +1,18 @@
+code {
+  border: 1px solid #ccc;
+  color: #db5855;
+  padding: 2px 6px;
+  background-color: #fff;
+  border-radius: 4px;
+}
+
+pre {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+pre code {
+  border: none;
+}

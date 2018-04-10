@@ -332,6 +332,7 @@ Spusťte Leiningen REPL (`lein repl`)
 * deklarativní konfigurace
 * life-cycle komponent
 * hot-reload kódu
+* The Twelve-Factor App [https://12factor.net](https://12factor.net)
 
 --
 

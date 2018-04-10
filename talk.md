@@ -612,11 +612,15 @@ Subscriber
 
 --
 
-### Thanks for your attention
+### Reference
 
 * [http://www.braveclojure.com/](http://www.braveclojure.com/)
 * [https://clojuredocs.org/](https://clojuredocs.org/)
 * [https://github.com/clojure/clojurescript](https://github.com/clojure/clojurescript)
 * [http://cljs.info/cheatsheet/](http://cljs.info/cheatsheet/)
+* [https://github.com/duct-framework/duct](https://github.com/duct-framework/duct)
+* [https://github.com/ring-clojure/ring](https://github.com/ring-clojure/ring)
+* [https://github.com/weavejester/compojure](https://github.com/weavejester/compojure)
 * [https://github.com/Day8/re-frame](https://github.com/Day8/re-frame)
 * [https://reagent-project.github.io/](https://reagent-project.github.io/)
+* [https://github.com/razum2um/awesome-clojure](https://github.com/razum2um/awesome-clojure)

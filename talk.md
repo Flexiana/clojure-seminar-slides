@@ -24,7 +24,7 @@ style: style.css
 
 * Úvod do funkcionálního programování
 * Clojure ekosystém
-* Architektura a dependency injection s Duct
+* Architektura, dependency injection, routing
 * DB a migrace s Duct
 * REST a Compojure
 * SPA s Re-frame a Reagent (development stack)
@@ -268,6 +268,16 @@ Více třeba na [http://clojure-doc.org/articles/language/laziness.html](http://
 
 ### Clojure ekosystém
 
+* Clojure je postaveno na malých knihovnách
+* Nejsou tu frameworky jako Django nebo Rails
+* Programátor si musí projekt "poskládat sám"
+* Větší volnost a větší zodpovědnost
+* [https://github.com/razum2um/awesome-clojure](https://github.com/razum2um/awesome-clojure)
+
+--
+
+### Clojure ekosystém
+
 * JVM - běhové prostředí
 * [Leiningen](https://leiningen.org) - build and management tool (de facto standard)
 * [Boot](https://github.com/boot-clj/boot) - build and management tool
@@ -278,6 +288,7 @@ Oba nástroje mají stejné funkcionality:
 * REPL
 * plugins
 * builds
+* šablony aplikací
 
 Více info na [https://www.braveclojure.com/appendix-a/](https://www.braveclojure.com/appendix-a/)
 
@@ -317,7 +328,217 @@ Spusťte Leiningen REPL (`lein repl`)
 
 `Duct` je dependency injection framework
 
+* komponentový systém postavený nad [Integrant](https://github.com/weavejester/integrant)
+* deklarativní konfigurace
+* life-cycle komponent
+* hot-reload kódu
 
+--
+
+### Komponenta
+
+* je to dispatch metoda s konfigurací
+* life-cycle události: `prep`, `init`, `halt`, `resume`, `suspend`
+* v 99 % si vystačíte s `init` a `halt`
+* více informací [https://github.com/weavejester/integrant](https://github.com/weavejester/integrant)
+
+--
+
+### Komponenta - příklad konfigurace
+
+```clojure
+{:duct.core/project-ns myapp
+ :duct.core/environment :production
+
+ :duct.module/sql
+ {:database-url #duct/env ["DB_URL" Str]}
+
+ :myapp.handler/api ;; <-- název musí být totožný s ns, tzn. myapp/handler/api.clj
+ {:auth-key #duct/env ["AUTH_KEY" Str :or "dummy-key"]
+  :db #ig/ref :duct.database/sql
+  :environment #ig/ref :duct.core/environment}
+
+...
+```
+
+--
+
+
+### Komponenta - příklad
+
+```clojure
+(ns myapp.handler.api
+  (:require
+    [clojure.java.io :as io]
+    [compojure.core :refer [GET]]
+    [integrant.core :as ig]))
+
+(defmethod ig/init-key :myapp.handler/api
+  [_ conf] ;; <-- první argument je název komponenty, druhý je konfigurace (hash-map)
+  (GET "/example" [:as request]
+    (io/resource "myapp/handler/example.html")))
+
+```
+
+--
+
+
+### Ring
+
+* Ring je implementace servletu - stará se o komunikaci mezi kódem aplikace a HTTP
+[https://github.com/ring-clojure/ring](https://github.com/ring-clojure/ring)
+* Handler - funkce, která dostane HTTP požadavek jako mapu a vrátí odpověď jako jinou mapu
+* Request - mapa, která obsahuje klíče jako: `:headers`, `:uri`, `:body`, ...
+* Response - mapa, která definuje odpověď, obsahuje tři klíče: `:status`, `:body` a `:headers`
+* Middleware - funkce, vyššího řádu, která vylepší handler (upraví headers apod.)
+* Na [clojars.org](https://clojars.org) najdete spoustu užitečných middlewarů
+* Dokumentace na
+  [https://github.com/ring-clojure/ring/wiki/Concepts](https://github.com/ring-clojure/ring/wiki/Concepts)
+
+--
+
+
+### Ring middleware - příklad
+
+Middleware nastaví Content-Type
+
+```clojure
+(defn wrap-content-type
+  [handler content-type]
+  (fn [request] ;; <-- vracím nový handler
+    (-> request
+        handler
+        (assoc-in [:headers "Content-Type"] content-type))))
+
+(defn handle-example
+  [conf]
+  (GET "/example" [:as request]
+    (io/resource "myapp/handler/example.html")))
+
+
+(defmethod ig/init-key :myapp.handler/api
+  [_ conf]
+  (-> conf
+      handle-example
+      (wrap-content-type "text/html")))
+
+```
+
+### Ring - util
+
+* Namespace `ring.util` obsahuje spoustu šikovných funkcí
+* `ring.util.response/content-type`, `ring.util.response/response`, ...
+
+Příklad:
+
+```clojure
+(require '[ring.util.response :as response])
+
+(defn handle-example
+  [conf]
+  (GET "/example" [:as request]
+    (response/response "<h1>Hallo</h1>")))
+
+```
+--
+
+### Compojure - routing
+
+* Malá knihovna pro deklarativní routing
+
+```clojure
+(require '[compojure.core :refer [GET context routes]])
+
+(GET "/example" [:as request]
+  (io/resource "myapp/handler/example.html")))
+```
+
+Destructuring URL parametrů
+```clojure
+(GET "/example/:id" [id :as request]
+  (io/resource "myapp/handler/example.html")))
+```
+
+Destructuring URL a query parametrů
+```clojure
+(GET "/example/:id" [id foo :as request] ;; <-- foo není v path, vytáhne se z query parameters
+  (io/resource "myapp/handler/example.html")))
+```
+
+--
+
+### Compojure - routing ukázky
+
+`context` redukuje duplikovaní parent části path
+```clojure
+(context "/example"
+  (GET "/foo" [:as request]
+    "<h1>foo</h1>")
+
+  (GET "/bar" [:as request]
+    "<h1>bar</h1>"))
+```
+
+Vygeneruje handlery pro `/example/foo` a `/example/bar`
+
+--
+
+### Compojure - routing ukázky
+
+`routes` umožňuje spojit několik handlerů do jednoho
+```clojure
+(def app
+  (routes
+    (GET "/foo" [:as request]
+      "<h1>foo</h1>")
+    (GET "/bar" [:as request]
+      "<h1>bar</h1>")))
+```
+
+--
+
+### Úkol č. 2
+
+* Vygenerujte projekt `duct` šablony:
+```sh
+lein new duct todomvc +api +cljs +example +postgres +site
+cd todomvc
+lein duct setup
+```
+
+* Do `project.clj` klíče `:profiles/dev` dejte `{:plugins [[venantius/ultra "0.5.1"]]}` - přidá barvy do REPLu
+* `lein repl` - spustí REPL projektu
+*
+```clojure
+(dev) ;; načte dev namespace
+(reset) ;; reloadne kód a restartuje server
+```
+* Zkuste [http://localhost:3000/example](http://localhost:3000/example)
+* Vložte do konfigurace `todomvc.handler/api` novou hodnotu `:name` a tu vraťte v odpovědi.
+* Vraťte v odpovědi URL a query parametr.
+
+--
+
+### Úkol č. 2 - řešení
+
+resources/todomvc/config.edn
+
+```clojure
+...
+ :todomvc.handler/api
+ {:db #ig/ref :duct.database/sql
+  :name "Clojure"}}
+```
+
+src/todomvc/handler/example.clj
+
+```clojure
+(defn handle-hello
+  [conf]
+  (GET "/hello" [url-param query-param :as request]
+    (response/response (format "<h1>Hello %s, :param %s, :query-param %s</h1>" (:name conf) url-param query-param))))
+```
+--
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -541,6 +541,219 @@ src/todomvc/handler/example.clj
 ```
 --
 
+### DB a migrace s Duct - boundary
+
+* Boundary je protokol, pomocí kterého se komunikuje s okolním světem (RDBS, Redis, HTTP calls, ...). Boundary explicitně
+ definuje hranice mezi systémem a okolím.
+* Umožňuje "vytlačit" side efekty na kraj systému
+* Usnadňuje testování
+
+--
+
+### DB a migrace s Duct - boundary příklad
+
+```clojure
+(ns todomvc.tasks.boundary
+  (:require
+    [duct.database.sql] ;; <-- Duct modul, který se stará o připojení k DB
+    [todomvc.tasks.db :as db])) ;; <-- ns s DB dotazy
+
+
+(defprotocol TaskService ;; <-- "Interface" našeho boundary
+  (get-all [db-spec]))
+
+
+(extend-protocol TaskService ;; <-- A jeho implementace
+  duct.database.sql.Boundary
+  (get-all [db-spec]
+    (db/get-all db-spec))) ;; <-- Tady se už volá konkrétní DB dotaz
+```
+
+Ten tajuplný `Boundary` je vlastně jenom record:
+
+```clojure
+(defrecord Boundary [spec])
+```
+
+### DB a migrace s Duct - boundary 2. příklad
+
+Reálné volání DB:
+```clojure
+(get-all (->Boundary db))
+({:description "uklidit" :done false :id 1 :title "Prvni ukol"})
+```
+
+Nadefinujeme nový record
+
+```clojure
+(defrecord FakeBoundary [spec])
+
+(extend-protocol TaskService
+  FakeBoundary
+  (get-all [db-spec]
+    ["Nic nedostanes"]))
+```
+
+A řekneme si o všechny úkoly
+```clojure
+(get-all (->FakeBoundary db))
+["Nic nedostanes"]
+```
+--
+
+### DB a migrace s Duct - Ragtime
+
+* Ragtime je knihovna na DB migrace
+* Definice migrací přímo v konfiguraci nebo v SQL souborech
+* [https://github.com/duct-framework/migrator.ragtime](https://github.com/duct-framework/migrator.ragtime)
+
+Výhody:
+
+* Žádné složité DSL
+* Čisté SQL, syntax highlighting
+
+Nevýhody:
+
+* Trošku ukecaná konfigurace
+
+--
+
+### DB a migrace s Duct - Ragtime konfigurace
+
+`resources/todomvc/config.edn`:
+
+```clojure
+{:duct.migrator/ragtime
+ {:migrations [#ig/ref :todomvc.migration/add-tasks]} ;; <-- určuje pořadí migrací
+
+ [:duct.migrator.ragtime/sql :todomvc.migration/add-tasks] ;; <-- pojmenování migrace
+ {:up [#duct/resource "todomvc/migrations/001-add-tasks.up.sql"] ;; <-- dopředná migrace
+  :down [#duct/resource "todomvc/migrations/001-add-tasks.down.sql"]}} ;; <-- zpětná migrace
+```
+
+`resources/todomvc/migrations/001-add-tasks.up.sql`:
+```sql
+create table tasks (
+    id serial primary key,
+    title text not null,
+    description text,
+    done boolean default false not null)
+```
+* Migrace se automaticky aplikují když spustíte server přes REPL
+
+--
+
+### DB a migrace s Duct - HugSQL
+
+* HugSQL je knihovna pro práci s RDBS
+* [https://www.hugsql.org](https://www.hugsql.org/)
+* Žádná abstrakce, čisté SQL
+
+Alternativy:
+
+* Clojure JDBC [http://funcool.github.io/clojure.jdbc/latest](http://funcool.github.io/clojure.jdbc/latest/) je základní
+  knihovna, jednoduché dotazy nebo SQL ve stringu
+* Korma [http://sqlkorma.com](http://sqlkorma.com/) dotazy pomocí DSL
+
+--
+
+### DB a migrace s Duct - HugSQL příklad
+
+HugSQL nabinduje SQL dotazy do Clojure funkcí (pomocí spec. anotací)
+
+`src/todomvc/tasks/db.sql`:
+```sql
+-- :name get-all :? :*
+select * from tasks
+```
+
+`src/todomvc/tasks/db.clj`:
+```clojure
+(ns todomvc.tasks.db
+  (:require
+    [hugsql.core :as hugsql]))
+
+(hugsql/def-db-fns "todomvc/tasks/db.sql") ;; <-- naimportuje SQL dotazy ze souboru
+(hugsql/def-sqlvec-fns "todomvc/tasks/db.sql") ;; <-- šikovné během vývoje, ukáze celý dotaz (vyzkoušíme za chvilku)
+```
+--
+
+### DB a migrace s Duct - REPL
+
+* Vytvořte si DB (PostgreSQL) (např. `createdb todomvc -O <váš-uživatel>`)
+* Přepněte se na tag `priprava-ukol3` (`git reset --hard priprava-ukol3`)
+* Nastavte si připojení do DB `export DB_URL="jdbc:postgresql://localhost/todomvc?user=root&password=toor"` nebo si
+  přidejte do `dev/resources/local.edn` tento řádek `:duct.module/sql {:database-url #duct/env ["DB_URL" Str :or "jdbc:postgresql://localhost/todomvc?user=root&password=toor"]}`
+* Nastartujte REPL `lein repl`
+* Přepněte se do dev profilu `(dev)`
+* Spusťte aplikaci `(reset)`
+* V konzoli by se mělo vypsat něco jako `:duct.migrator.ragtime/applying :todomvc.migration/add-tasks#491d1e44`
+* Teď můžete ovládat celou aplikaci přímo z konzole
+--
+
+### DB a migrace s Duct - REPL a DB dotazy 1.
+
+* V proměnné `config` máte aktuální konfiguraci
+* Změny v kódu se hot-swapnout když zavoláte znovu `(reset)`
+* Uložte si připojení k DB `(def db-spec (-> config :duct.module/sql :database-url))`
+* Naimportujte DB dotazy `(require '[todomvc.tasks.db :as db])`
+
+--
+
+### DB a migrace s Duct - REPL a DB dotazy  2.
+
+* Získejte všechny úkoly z DB `(db/get-all db-spec)`
+* POZOR DB dotazy ze SQL se neaktualizují, po `(reset)` je nutné i reload namespacu `(require '[todomvc.tasks.db :as db] :reload)`
+* Zobrazení SQL dotazu `(db/get-all-sqlvec)`
+
+--
+
+### Úkol č. 3
+
+* Přidejte funkci `create-task`, která vezme mapu s klíči `:title` a `:description`
+* Přijdete funkci `finish-task`, která označí úkol jako vyřízený
+
+--
+
+### Úkol č. 3 - Řešení
+
+* Přidejte funkci `create-task`, která vezme mapu s klíči `:title` a `:description`
+
+```sql
+-- :name create-task :<! :1
+insert into tasks (title, description) values (:title, :description)
+```
+
+* V REPLu musím resetnout systém `(reset)` a reloadnout namespace `(require '[todomvc.tasks.db :as db] :reload)`
+
+```clojure
+(db/create-task-sqlvec {:title "Umyt nadobi", :description "HNED!"})
+["insert into tasks (title, description) values ( ? , ? )" "Umyt nadobi" "HNED!"]
+
+(db/create-task db-spec {:title "Umyt nadobi", :description "HNED!"})
+```
+--
+
+### Úkol č. 3 - Řešení
+
+* Přijdete funkci `finish-task`, která označí úkol jako vyřízený
+
+```sql
+-- :name finish-task :<! :1
+update tasks set done = true where id = :id returning *
+```
+
+```clojure
+(db/finish-task-sqlvec {:id 2})
+["update tasks set done = true where id = ? returning *" 2]
+
+(db/finish-task db-spec {:id 2})
+{:description "HNED!" :done true :id 2 :title "Umyt nadobi"}
+```
+
+--
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ### ClojureScript + ReactJS = Reagent

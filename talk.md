@@ -27,6 +27,7 @@ style: style.css
 * Architektura, dependency injection, routing
 * DB a migrace s Duct
 * REST a Compojure
+* Testování
 * SPA s Re-frame a Reagent (development stack)
 * Funkční ukázka propojení všech technologií na příkladu
 
@@ -991,6 +992,94 @@ Můžeme zahazovat i klíče, které neznáme:
     (if (nil? task)
       {:status 404}
       {:status 200, :body task})))
+```
+
+--
+
+
+### Testování
+
+K testování nám bude stačit standardní modul `clojure.test`
+
+```clojure
+(ns todomvc.foo-test
+  (:require
+    [clojure.test :refer [deftest is testing]]))
+
+(deftest foo-test
+  (testing "should add two numbers"
+    (is (= 2 (+ 1 1)))))
+```
+
+--
+
+### Testování - API
+
+Otestujeme `get-tasks` handler skrze HTTP `test/todomvc/tasks/api_test.clj`:
+
+```clojure
+(ns todomvc.tasks.api-test
+  (:require
+    [clojure.test :refer [deftest is]]
+    [cheshire.core :as cheshire] ;; <-- budeme parsovat JSON response
+    [integrant.core :as ig]
+    [ring.mock.request :as mock] ;; <-- budeme mockovat Ring request
+    [todomvc.tasks.api]
+    [todomvc.tasks.boundary :refer [TaskService]]))
+
+
+(defn json-response ;; <-- helper funkce na aplikaci requestu a parsování JSON response
+  ([conf method path]
+   (json-response conf method path nil))
+  ([conf method path body] ;; <-- dvě arity, příprava na další úkol
+   (let [handler (ig/init-key :todomvc.handler/api conf)
+         request (mock/request method path)]
+     (-> (if (nil? body)
+           request
+           (assoc request :body-params body))
+         handler
+         (update :body #(some-> % (cheshire/decode true)))))))
+
+(deftest get-tasks-test
+  (let [conf {:db (reify TaskService ;; <-- "mock" databáze
+                    (get-all [db-spec]
+                      []))}
+        request (mock/request :get "/api/tasks")
+        response (json-response conf request)]
+    (is (= 200 (:status response)))
+    (is (= [] (:body response)))))
+```
+
+Restartujeme server `(reset)` a pustíme testy `(test)`
+
+--
+
+### Úkol č. 6
+
+* Napište test na vytvoření úkolu
+
+--
+
+### Úkol č. 6 - Řešení
+
+* Napište test na vytvoření úkolu
+
+`src/todomvc/tasks/api.clj`
+
+```clojure
+(deftest create-task-test
+  (testing "should create a task"
+    (let [conf {:db (reify TaskService
+                      (create-task [db-spec params]
+                        (assoc params :id 1)))}
+          response (json-response conf :post "/api/tasks" {:title "Task 1"})]
+      (is (-> response :body :id some?))
+      (is (= 201 (:status response)))))
+
+  (testing "should return bad request"
+    (let [response (json-response {:db nil} :post "/api/tasks" {})]
+      (is (= {:errors {:title "this field is mandatory"}} (:body response)))
+      (is (= 400 (:status response))))))
 ```
 
 --

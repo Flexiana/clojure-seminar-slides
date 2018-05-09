@@ -754,6 +754,247 @@ update tasks set done = true where id = :id returning *
 --
 
 
+### REST a Compojure
+
+Definice routy pro /api/tasks:
+
+`src/todomvc/handler/api.clj`
+
+```clojure
+(ns todomvc.handler.api
+  (:require
+    [compojure.core :refer [context GET]]
+    [integrant.core :as ig]
+    [ring.middleware.json :refer [wrap-json-response]]
+    [todomvc.tasks.api :as tasks]))
+
+
+(defmethod ig/init-key :todomvc.handler/api ;; <-- nová komponenta pro API
+  [_ conf]
+  (wrap-json-response ;; <-- chceme vracet odpověď jako JSON
+    (context "/api" []
+      (context "/tasks" []
+        (GET "/" [:as request]
+          (tasks/get-tasks conf request)))))) ;; <-- samotný handler
+```
+
+--
+
+### REST a Compojure
+
+Middleware musíme přidat do závislostí projektu, upravím `project.clj` a přidáme do `:dependencies`
+`[ring/ring-json "0.4.0"]`.
+
+Komponentu musíme zaregistrovat v `resources/todomvc/config.edn`:
+
+```clojure
+...
+
+ :todomvc.handler/api
+ {:db #ig/ref :duct.database/sql}
+
+ :duct.router/cascading
+ [#ig/ref :todomvc.handler/api] ;; <-- tento řádek už tam je, jenom nahraďte původní handler
+```
+
+--
+
+
+### REST a Compojure
+
+Ještě implementace našeho handleru `src/todomvc/tasks/api.clj`:
+
+```clojure
+(ns todomvc.tasks.api
+  (:require
+    [todomvc.tasks.boundary :as db]))
+
+(defn get-tasks
+  [conf request]
+  {:body (db/get-all (:db conf)), :status 200})
+```
+--
+
+
+### REST a Compojure
+
+* Spusťte REPL a restartujte server
+* Zavolejte `curl http://localhost:3000/api/tasks` a měli byste vidět seznam úkolů
+
+--
+
+### REST a Compojure - Vytvoření úkolu
+
+Přidáme handler na vytvoření úkolu `src/todomvc/handler/api.clj`:
+
+```clojure
+(ns todomvc.handler.api
+  (:require
+    [compojure.core :refer [context GET POST]] ;; <-- naimportujeme POST
+    [integrant.core :as ig]
+    [ring.middleware.json :refer [wrap-json-response]]
+    [todomvc.tasks.api :as tasks]))
+
+
+(defmethod ig/init-key :todomvc.handler/api
+  [_ conf]
+  (wrap-json-response
+    (context "/api" []
+      (context "/tasks" []
+        (GET "/" [:as request]
+          (tasks/get-tasks conf request))
+        (POST "/" [:as request] ;; <-- handler na POST
+          (tasks/create-task conf request))))))
+```
+
+--
+
+### REST a Compojure - Vytvoření úkolu
+
+Naimplementujeme handler `src/todomvc/tasks/api.clj`:
+
+```clojure
+(defn create-task
+  [conf request]
+  (let [new-task (db/create-task (:db conf) (:body-params request))]
+    {:body new-task, :status 201}))
+```
+
+Zkontrolujeme protokol TaskService, měl by vypadat nějak tato:
+
+```clojure
+(defprotocol TaskService
+  (get-all [db-spec])
+  (create-task [db-spec task]))
+```
+
+--
+
+### REST a Compojure - Vytvoření úkolu
+
+Teď by mělo stačit restartovat server `(reset)` a udělat POST request na adresu `http://localhost:3000/api/tasks`
+
+```json
+{"title": "Uklit byt", "description": "Vynést koď, vyluxovat, ..."}
+```
+
+--
+
+### REST a Compojure - Validace vstupu
+
+* Vstup dat je potřeba validovat nejen z bezpečnostních důvodů a s tím nám pomůžu knihovna Struct
+[http://funcool.github.io/struct/latest/](http://funcool.github.io/struct/latest/)
+* Validační model - čisté datové struktury, žádná makra
+* Přidejme `[funcool/struct "1.2.0"]` do závislostí a restartujme REPL
+
+--
+
+### REST a Compojure - Validace vstupu
+
+Ukázka použití:
+
+```clojure
+(require '[struct.core :as st])
+
+(st/validate {:name nil} ;; <-- vstupní data pro validaci
+             {:name [st/required]}) ;; <-- validační model
+[{:name "this field is mandatory"} {}]
+```
+
+```clojure
+(let [[errors input] (st/validate {:name "foo"} {:name [st/required]})]
+  (if (nil? errors)
+    :valid
+    :invalid))
+:valid
+```
+
+--
+
+### REST a Compojure - Validace vstupu
+
+Knihovna podporuje i coercing:
+
+```clojure
+(st/validate {:age "20"} ;; <-- věk je tu jako string
+             {:age [st/required st/integer-str]}) ;; <-- ale my to chceme jako integer
+[nil {:age 20}] ;; <-- voilà máme zde integer
+```
+
+Můžeme zahazovat i klíče, které neznáme:
+```clojure
+(st/validate {:age "20", :foo "bar"}
+             {:age [st/required st/integer-str]}
+             {:strip true})
+[nil {:age 20}] ;; <-- dostaneme pouze ty klíče, o které vyžadujeme v modelu
+```
+
+--
+
+### Úkol č. 4
+
+* Upravte funkci `create-task` tak, aby validovata vstup: `:title` - povinné pole, `:description` - nepovinné pole (nemusí být v requestu)
+
+--
+
+### Úkol č. 4 - Řešení
+
+* Upravte funkci `create-task` tak, aby validovata vstup: `:title` - povinné pole, `:description` - nepovinné pole (nemusí být v requestu)
+
+```clojure
+(def Task
+  {:title [st/required]
+   :description [st/string]})
+
+(defn create-task
+  [conf request]
+  (let [[errors input] (st/validate (:body-params request) Task {:strip true})]
+    (if (nil? errors)
+      {:body (db/create-task (:db conf) (merge (into {} (map vector (keys Task) (repeat nil)))
+                                               input)) ;; <-- HugSQL vyžaduje všechny atributy, i ty nilové
+       :status 201}
+      {:body {:errors errors}, :status 400})))
+```
+
+--
+
+### Úkol č. 5
+
+* Přidejte handler, který označí úkol jako dokončený
+
+--
+
+### Úkol č. 5 - Řešení
+
+* Přidejte handler, který označí úkol jako dokončený
+
+`src/todomvc/tasks/api.clj`
+
+```clojure
+(PATCH "/:id" [id :as request]
+  (tasks/finish-task conf request))
+```
+
+--
+
+### Úkol č. 5 - Řešení
+
+* Přidejte handler, který označí úkol jako dokončený
+
+`src/todomvc/tasks/api.clj`
+
+```clojure
+(defn finish-task
+  [conf request]
+  (let [[errors input] (st/validate (:params request) {:id [st/required st/integer-str]}) ;; <-- id musí být integer
+        task (db/finish-task (:db conf) (:id input))]
+    (if (nil? task)
+      {:status 404}
+      {:status 200, :body task})))
+```
+
+--
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ### ClojureScript + ReactJS = Reagent

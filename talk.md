@@ -1,7 +1,7 @@
 title: Clojure Full-stack aplikace
 author:
   name: Lukáš Rychtecký
-  twitter: @lukasrychtecky
+  twitter: lukasrychtecky
 controls: true
 style: style.css
 
@@ -157,7 +157,7 @@ Jak to otestujeme?
 
 --
 
-#### Pilíře funkcionálního programování
+### Pilíře funkcionálního programování
 
 * first-class and higher-order functions
 * pure functions
@@ -170,17 +170,6 @@ Jak to otestujeme?
 
 * funkci lze předat jako parametr jiné funkci
 * funkce může vracet jinou funkci
-
-```python
-def foo(func):
-    return func(1, 3)
-
-def bar(a, b):
-    # do stuff
-    # ...
-
-foo(bar)
-```
 
 ```clojure
 (defn foo
@@ -195,6 +184,8 @@ foo(bar)
 
 
 (foo bar)
+```
+
 --
 
 ### Pure functions
@@ -206,7 +197,7 @@ foo(bar)
   [result]
   (count (:items result)))
 
-map(count-items results)  ;; [1, 2, 4, 1]
+(map count-items results)  ;; [1, 2, 4, 1]
 ```
 
 --
@@ -282,8 +273,12 @@ Více třeba na [http://clojure-doc.org/articles/language/laziness.html](http://
 * [Leiningen](https://leiningen.org) - build and management tool (de facto standard)
 * [Boot](https://github.com/boot-clj/boot) - build and management tool
 
+--
 
-Oba nástroje mají stejné funkcionality:
+### Clojure ekosystém
+
+Leiningen i Boot mají stejné funkcionality:
+
 * dependency management
 * REPL
 * plugins
@@ -292,9 +287,7 @@ Oba nástroje mají stejné funkcionality:
 
 Více info na [https://www.braveclojure.com/appendix-a/](https://www.braveclojure.com/appendix-a/)
 
-ClojureScript
-
-* [Lumo](https://github.com/anmonteiro/lumo) - NodeJS
+* ClojureScript [Lumo](https://github.com/anmonteiro/lumo) - NodeJS
 
 --
 
@@ -320,7 +313,18 @@ Spusťte Leiningen REPL (`lein repl`)
 * `(defn sum [coll] (reduce + coll))` a `(sum (range 10))` `45`
 * Napište funkci, která udělá sumu druhé mocniny sudých čísel od 0 do 10
 * `(reduce + (map #(* % %) (filter even? (range 10))))` `120`
-* nebo čitelněji `(->> (range 10) (filter even?) (map #(* % %)) (reduce +))`
+--
+
+### Úkol č. 1 - Řešení
+
+* nebo čitelněji
+
+```clojure
+(->> (range 10)
+      (filter even?)
+      (map #(* % %))
+      (reduce +))
+```
 
 --
 
@@ -364,7 +368,6 @@ Spusťte Leiningen REPL (`lein repl`)
 
 --
 
-
 ### Komponenta - příklad
 
 ```clojure
@@ -383,7 +386,6 @@ Spusťte Leiningen REPL (`lein repl`)
 
 --
 
-
 ### Ring
 
 * Ring je implementace servletu - stará se o komunikaci mezi kódem aplikace a HTTP
@@ -392,6 +394,11 @@ Spusťte Leiningen REPL (`lein repl`)
 * Request - mapa, která obsahuje klíče jako: `:headers`, `:uri`, `:body`, ...
 * Response - mapa, která definuje odpověď, obsahuje tři klíče: `:status`, `:body` a `:headers`
 * Middleware - funkce, vyššího řádu, která vylepší handler (upraví headers apod.)
+
+--
+
+### Ring
+
 * Na [clojars.org](https://clojars.org) najdete spoustu užitečných middlewarů
 * Dokumentace na
   [https://github.com/ring-clojure/ring/wiki/Concepts](https://github.com/ring-clojure/ring/wiki/Concepts)
@@ -424,6 +431,7 @@ Middleware nastaví Content-Type
       (wrap-content-type "text/html")))
 
 ```
+--
 
 ### Ring - util
 
@@ -455,14 +463,17 @@ Příklad:
 ```
 
 Destructuring URL parametrů
+
 ```clojure
 (GET "/example/:id" [id :as request]
   (io/resource "myapp/handler/example.html")))
 ```
 
 Destructuring URL a query parametrů
+
 ```clojure
-(GET "/example/:id" [id foo :as request] ;; <-- foo není v path, vytáhne se z query parameters
+(GET "/example/:id" [id foo :as request]
+  ;; <-- foo není v path, vytáhne se z query parameters
   (io/resource "myapp/handler/example.html")))
 ```
 
@@ -471,6 +482,7 @@ Destructuring URL a query parametrů
 ### Compojure - routing ukázky
 
 `context` redukuje duplikovaní parent části path
+
 ```clojure
 (context "/example"
   (GET "/foo" [:as request]
@@ -487,6 +499,7 @@ Vygeneruje handlery pro `/example/foo` a `/example/bar`
 ### Compojure - routing ukázky
 
 `routes` umožňuje spojit několik handlerů do jednoho
+
 ```clojure
 (def app
   (routes
@@ -514,6 +527,11 @@ lein duct setup
 (dev) ;; načte dev namespace
 (reset) ;; reloadne kód a restartuje server
 ```
+
+--
+
+### Úkol č. 2
+
 * Zkuste [http://localhost:3000/example](http://localhost:3000/example)
 * Vložte do konfigurace `todomvc.handler/api` novou hodnotu `:name` a tu vraťte v odpovědi.
 * Vraťte v odpovědi URL a query parametr.
@@ -522,7 +540,7 @@ lein duct setup
 
 ### Úkol č. 2 - řešení
 
-resources/todomvc/config.edn
+`resources/todomvc/config.edn`
 
 ```clojure
 ...
@@ -531,13 +549,16 @@ resources/todomvc/config.edn
   :name "Clojure"}}
 ```
 
-src/todomvc/handler/example.clj
+`src/todomvc/handler/example.clj`
 
 ```clojure
 (defn handle-hello
   [conf]
   (GET "/hello" [url-param query-param :as request]
-    (response/response (format "<h1>Hello %s, :param %s, :query-param %s</h1>" (:name conf) url-param query-param))))
+    (response/response (format "<h1>Hello %s, :param %s, :query-param %s</h1>"
+                               (:name conf)
+                               url-param
+                               query-param))))
 ```
 --
 
@@ -574,13 +595,14 @@ Ten tajuplný `Boundary` je vlastně jenom record:
 ```clojure
 (defrecord Boundary [spec])
 ```
+--
 
 ### DB a migrace s Duct - boundary 2. příklad
 
 Reálné volání DB:
 ```clojure
 (get-all (->Boundary db))
-({:description "uklidit" :done false :id 1 :title "Prvni ukol"})
+;;({:description "uklidit" :done false :id 1 :title "Prvni ukol"}))
 ```
 
 Nadefinujeme nový record
@@ -593,11 +615,14 @@ Nadefinujeme nový record
   (get-all [db-spec]
     ["Nic nedostanes"]))
 ```
+--
+
+### DB a migrace s Duct - boundary 2. příklad
 
 A řekneme si o všechny úkoly
 ```clojure
 (get-all (->FakeBoundary db))
-["Nic nedostanes"]
+;;["Nic nedostanes"]
 ```
 --
 
@@ -606,6 +631,10 @@ A řekneme si o všechny úkoly
 * Ragtime je knihovna na DB migrace
 * Definice migrací přímo v konfiguraci nebo v SQL souborech
 * [https://github.com/duct-framework/migrator.ragtime](https://github.com/duct-framework/migrator.ragtime)
+
+--
+
+### DB a migrace s Duct - Ragtime
 
 Výhody:
 
@@ -624,12 +653,20 @@ Nevýhody:
 
 ```clojure
 {:duct.migrator/ragtime
- {:migrations [#ig/ref :todomvc.migration/add-tasks]} ;; <-- určuje pořadí migrací
+ {:migrations [#ig/ref :todomvc.migration/add-tasks]}
+ ;; <-- určuje pořadí migrací
 
- [:duct.migrator.ragtime/sql :todomvc.migration/add-tasks] ;; <-- pojmenování migrace
- {:up [#duct/resource "todomvc/migrations/001-add-tasks.up.sql"] ;; <-- dopředná migrace
-  :down [#duct/resource "todomvc/migrations/001-add-tasks.down.sql"]}} ;; <-- zpětná migrace
+ [:duct.migrator.ragtime/sql :todomvc.migration/add-tasks]
+ ;; <-- pojmenování migrace
+ {:up [#duct/resource "todomvc/migrations/001-add-tasks.up.sql"]
+  ;; <-- dopředná migrace
+  :down [#duct/resource "todomvc/migrations/001-add-tasks.down.sql"]}}
+  ;; <-- zpětná migrace
 ```
+
+--
+
+### DB a migrace s Duct - Ragtime konfigurace
 
 `resources/todomvc/migrations/001-add-tasks.up.sql`:
 ```sql
@@ -662,10 +699,16 @@ Alternativy:
 HugSQL nabinduje SQL dotazy do Clojure funkcí (pomocí spec. anotací)
 
 `src/todomvc/tasks/db.sql`:
+
 ```sql
--- :name get-all :? :*
+\-- :name get-all :? :*
 select * from tasks
 ```
+Poznámka: Ten \ tam být nemá, ale Markdown to nechce jinak zobrazit
+
+--
+
+### DB a migrace s Duct - HugSQL příklad
 
 `src/todomvc/tasks/db.clj`:
 ```clojure
@@ -674,7 +717,8 @@ select * from tasks
     [hugsql.core :as hugsql]))
 
 (hugsql/def-db-fns "todomvc/tasks/db.sql") ;; <-- naimportuje SQL dotazy ze souboru
-(hugsql/def-sqlvec-fns "todomvc/tasks/db.sql") ;; <-- šikovné během vývoje, ukáze celý dotaz (vyzkoušíme za chvilku)
+(hugsql/def-sqlvec-fns "todomvc/tasks/db.sql")
+;; <-- šikovné během vývoje, ukáze celý dotaz (vyzkoušíme za chvilku)
 ```
 --
 
@@ -682,11 +726,21 @@ select * from tasks
 
 * Vytvořte si DB (PostgreSQL) (např. `createdb todomvc -O <váš-uživatel>`)
 * Přepněte se na tag `priprava-ukol3` (`git reset --hard priprava-ukol3`)
+
+--
+
+### DB a migrace s Duct - REPL
+
 * Nastavte si připojení do DB `export DB_URL="jdbc:postgresql://localhost/todomvc?user=root&password=toor"` nebo si
   přidejte do `dev/resources/local.edn` tento řádek `:duct.module/sql {:database-url #duct/env ["DB_URL" Str :or "jdbc:postgresql://localhost/todomvc?user=root&password=toor"]}`
 * Nastartujte REPL `lein repl`
 * Přepněte se do dev profilu `(dev)`
 * Spusťte aplikaci `(reset)`
+
+--
+
+### DB a migrace s Duct - REPL
+
 * V konzoli by se mělo vypsat něco jako `:duct.migrator.ragtime/applying :todomvc.migration/add-tasks#491d1e44`
 * Teď můžete ovládat celou aplikaci přímo z konzole
 --
@@ -720,7 +774,7 @@ select * from tasks
 * Přidejte funkci `create-task`, která vezme mapu s klíči `:title` a `:description`
 
 ```sql
--- :name create-task :<! :1
+\-- :name create-task :<! :1
 insert into tasks (title, description) values (:title, :description)
 ```
 
@@ -739,7 +793,7 @@ insert into tasks (title, description) values (:title, :description)
 * Přijdete funkci `finish-task`, která označí úkol jako vyřízený
 
 ```sql
--- :name finish-task :<! :1
+\-- :name finish-task :<! :1
 update tasks set done = true where id = :id returning *
 ```
 
@@ -777,13 +831,17 @@ Definice routy pro /api/tasks:
         (GET "/" [:as request]
           (tasks/get-tasks conf request)))))) ;; <-- samotný handler
 ```
-
 --
 
 ### REST a Compojure
 
 Middleware musíme přidat do závislostí projektu, upravím `project.clj` a přidáme do `:dependencies`
 `[ring/ring-json "0.4.0"]`.
+
+
+--
+
+### REST a Compojure - Vytvoření úkolu
 
 Komponentu musíme zaregistrovat v `resources/todomvc/config.edn`:
 
@@ -794,9 +852,9 @@ Komponentu musíme zaregistrovat v `resources/todomvc/config.edn`:
  {:db #ig/ref :duct.database/sql}
 
  :duct.router/cascading
- [#ig/ref :todomvc.handler/api] ;; <-- tento řádek už tam je, jenom nahraďte původní handler
+ [#ig/ref :todomvc.handler/api]
+;; <-- tento řádek už tam je, jenom nahraďte původní handler
 ```
-
 --
 
 
@@ -880,7 +938,7 @@ Teď by mělo stačit restartovat server `(reset)` a udělat POST request na adr
 
 --
 
-### REST a Compojure - Validace vstupu
+### REST a Compojure - Validace
 
 * Vstup dat je potřeba validovat nejen z bezpečnostních důvodů a s tím nám pomůžu knihovna Struct
 [http://funcool.github.io/struct/latest/](http://funcool.github.io/struct/latest/)
@@ -889,7 +947,7 @@ Teď by mělo stačit restartovat server `(reset)` a udělat POST request na adr
 
 --
 
-### REST a Compojure - Validace vstupu
+### REST a Compojure - Validace
 
 Ukázka použití:
 
@@ -911,7 +969,7 @@ Ukázka použití:
 
 --
 
-### REST a Compojure - Validace vstupu
+### REST a Compojure - Validace
 
 Knihovna podporuje i coercing:
 
@@ -950,8 +1008,10 @@ Můžeme zahazovat i klíče, které neznáme:
   [conf request]
   (let [[errors input] (st/validate (:body-params request) Task {:strip true})]
     (if (nil? errors)
-      {:body (db/create-task (:db conf) (merge (into {} (map vector (keys Task) (repeat nil)))
-                                               input)) ;; <-- HugSQL vyžaduje všechny atributy, i ty nilové
+      {:body (db/create-task (:db conf)
+                             (merge (into {} (map vector (keys Task) (repeat nil)))
+                                    input))
+                             ;; <-- HugSQL vyžaduje všechny atributy, i ty nilové
        :status 201}
       {:body {:errors errors}, :status 400})))
 ```
@@ -1025,8 +1085,14 @@ Otestujeme `get-tasks` handler skrze HTTP `test/todomvc/tasks/api_test.clj`:
     [ring.mock.request :as mock] ;; <-- budeme mockovat Ring request
     [todomvc.tasks.api]
     [todomvc.tasks.boundary :refer [TaskService]]))
+```
+--
 
+### Testování - API
 
+Otestujeme `get-tasks` handler skrze HTTP `test/todomvc/tasks/api_test.clj`:
+
+```clojure
 (defn json-response ;; <-- helper funkce na aplikaci requestu a parsování JSON response
   ([conf method path]
    (json-response conf method path nil))
@@ -1159,7 +1225,8 @@ Subscriber
 Upravíme `resources/todomvc/config.edn`:
 
 ```clojure
- :duct.middleware.web/defaults {:static {:resources "todomvc/public"}} ;; <-- přidáme, servírování static. souborů
+ :duct.middleware.web/defaults {:static {:resources "todomvc/public"}}
+ ;; <-- přidáme, servírování static. souborů
 
   :duct.router/cascading
  [#ig/ref :todomvc.handler/api
@@ -1240,7 +1307,8 @@ Přidáme nové routy `src/todomvc/handler/site.clj`:
   [_ conf]
   (GET "/" [:as request]
     (response/content-type
-      (response/resource-response "todomvc/pages/index.html") ;; <-- vrátíme statickou stránku
+      (response/resource-response "todomvc/pages/index.html")
+      ;; <-- vrátíme statickou stránku
       "text/html")))
 ```
 
@@ -1251,6 +1319,11 @@ Přidáme nové routy `src/todomvc/handler/site.clj`:
 * Konfigurace v `project.clj` je trochu větší, přepněte se na další krok `git reset --hard cljs-konfigurace`
 * Restartujeme REPL a server `(dev)`, `(reset)` a spustíme CLJS build `(figwheel-repl/start-figwheel!)`
 * V konzoli by se mělo objevit něco jako `Successfully compiled build :dev to "resources/todomvc/public/js/main.js" in 2.999 seconds.`
+
+--
+
+### SPA s Re-frame a Reagent - Konfigurace
+
 * Otevřeme prohlížeč [http://localhost:3000](http://localhost:3000/)
 * Produkční build `lein min-app`
 --
@@ -1267,14 +1340,22 @@ Upravíme `src/todomvc/client/main.cljs`:
     [todomvc.client.events]
     [todomvc.client.subs] ;; <-- musíme někde naimportovat, jinak se nezaregistrují
     [todomvc.client.tasks.components :as components]
-    [todomvc.client.tasks.events])) ;; <-- musíme někde naimportovat, jinak se nezaregistrují
+    [todomvc.client.tasks.events]))
+    ;; <-- musíme někde naimportovat, jinak se nezaregistrují
 
 
 (def init-db ;; <-- výchozí stav DB
   {:tasks {:list nil
            :new-task nil}})
 
+```
+--
 
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+Upravíme `src/todomvc/client/main.cljs`:
+
+```clojure
 (defn- main
   []
   (reagent/create-class
@@ -1288,9 +1369,16 @@ Upravíme `src/todomvc/client/main.cljs`:
      (fn []
        (let [app (re-frame/subscribe [:app])] ;; <-- náš jediný subscriber na celou DB
          (fn []
-           (components/todomvc-wrapper @app))))})) ;; <-- musí se dereferencovat! nechceme používat atom
+           (components/todomvc-wrapper @app))))}))
+           ;; <-- musí se dereferencovat! nechceme používat atom
+```
+--
 
+### SPA s Re-frame a Reagent - Výpis úkolů
 
+Upravíme `src/todomvc/client/main.cljs`:
+
+```clojure
 (defn ^:export init
   []
   (let [app-element (.getElementById js/document "app")]
@@ -1357,8 +1445,15 @@ Vytvoříme handler na získání úkolů `src/todomvc/client/tasks/events.cljs`
   :tasks/handle-get-tasks
   (fn [db [_ tasks]]
     (assoc-in db [:tasks :list] tasks))) ;; <-- nastavíme úkoly do DB
+```
 
+--
 
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+Vytvoříme handler na získání úkolů `src/todomvc/client/tasks/events.cljs`:
+
+```clojure
 (re-frame/reg-event-db
   :tasks/handle-error-get-tasks
   (fn [db [_ response]]
@@ -1385,7 +1480,8 @@ Vytvoříme middleware na získání úkolů `src/todomvc/client/tasks/middlewar
            :format :json
            :response-format :json
            :keywords? true
-           :handler #(re-frame/dispatch [:tasks/handle-get-tasks %]) ;; <-- odešleme událost se seznamem úkolů
+           :handler #(re-frame/dispatch [:tasks/handle-get-tasks %])
+           ;; <-- odešleme událost se seznamem úkolů
            :error-handler #(re-frame/dispatch [:tasks/handle-error-get-tasks %])))))
 ```
 --
@@ -1401,14 +1497,22 @@ A nakonec upravíme výpis úkolů `src/todomvc/client/tasks/components.cljs`:
   [tasks]
   [:ul.todo-list
    (for [task tasks] ;; <-- renderujeme sekvenci
-     ^{:key (:id task)} ;; <-- každý element v sekvenci musí mít unikátní ID (vyžaduje React)
+     ^{:key (:id task)}
+     ;; <-- každý element v sekvenci musí mít unikátní ID (vyžaduje React)
      [:li
       [:div.view
        [:input {:type "checkbox", :class "toggle"}]
        [:label (:title task)]
        [:button.destroy]]
       [:input {:type "text", :class "edit", :id (str "task-" (:id tasks))}]])])
+```
+--
 
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+A nakonec upravíme výpis úkolů `src/todomvc/client/tasks/components.cljs`:
+
+```clojure
 (defn main
   [tasks]
   [:section.main
@@ -1418,7 +1522,14 @@ A nakonec upravíme výpis úkolů `src/todomvc/client/tasks/components.cljs`:
             :id "toggle-all"}]
    [:label {:for "toggle-all"} "Mark all as complete"]
    [todo-list tasks]])
+```
+--
 
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+A nakonec upravíme výpis úkolů `src/todomvc/client/tasks/components.cljs`:
+
+```clojure
 (defn todomvc-wrapper
   [db]
   (let [tasks (-> db :tasks :list)]
@@ -1452,7 +1563,6 @@ Handler na bindování hodnoty z inputu do DB `src/todomvc/client/tasks/events.c
   (fn [db [_ title]]
     (assoc-in db [:tasks :new-task] title)))
 ```
-
 --
 
 ### SPA s Re-frame a Reagent - Příprava na 7. úkol
@@ -1464,7 +1574,14 @@ Ještě musíme vyhodit událost při změně inputu `src/todomvc/client/tasks/c
   (:require
     [goog.events.KeyCodes :as KeyCodes]
     [re-frame.core :as re-frame]))
+```
+--
 
+### SPA s Re-frame a Reagent - Příprava na 7. úkol
+
+Ještě musíme vyhodit událost při změně inputu `src/todomvc/client/tasks/components.cljs`:
+
+```clojure
 (defn todomvc-wrapper
   [db]
   (let [tasks (-> db :tasks :list)]
@@ -1476,11 +1593,12 @@ Ještě musíme vyhodit událost při změně inputu `src/todomvc/client/tasks/c
                 :placeholder "What needs to be done?"
                 :auto-focus true
                 :on-key-up #(when (= KeyCodes/ENTER (.-keyCode %))
-                              (js/console.log % "Enter")) ;; <-- vyhodíme událost při zmáčknutí enteru
-                :on-change #(re-frame/dispatch [:tasks/update-new-task (-> % .-target .-value)])}]]
-;; <-- vyhodíme událost na on-change
-      (when (seq tasks)
-        [main tasks])]]))
+                              (js/console.log % "Enter"))
+                ;; <-- vyhodíme událost při zmáčknutí enteru
+                :on-change #(re-frame/dispatch [:tasks/update-new-task
+                                                (-> % .-target .-value)])}]]
+                ;; <-- vyhodíme událost na on-change
+      (when (seq tasks) [main tasks])]]))
 ```
 
 --
@@ -1496,7 +1614,6 @@ Nápověda: Odeslání POST požadavku
   :params request-body
   ...
 ```
-
 --
 
 ### SPA s Re-frame a Reagent - Úkol č. 7 - Řešení
@@ -1512,14 +1629,21 @@ Vytvoříme handlery `src/todomvc/client/tasks/events.cljs`:
   (fn [db _]
     db))
 
-
 (re-frame/reg-event-db
   :tasks/handle-create-task
   [m/get-tasks]
   (fn [db _]
     (assoc-in db [:tasks :new-task] nil))) ;; <-- vymaže input
+```
+--
 
+### SPA s Re-frame a Reagent - Úkol č. 7 - Řešení
 
+Vytvořte nový úkol a aktualizujte seznam úkolů
+
+Vytvoříme handlery `src/todomvc/client/tasks/events.cljs`:
+
+```clojure
 (re-frame/reg-event-db
   :tasks/handle-error-create-task
   (fn [db [_ response]]
@@ -1552,8 +1676,6 @@ Vytvoříme middleware na odeslání nového úkolu `src/todomvc/client/tasks/mi
 
 ### SPA s Re-frame a Reagent - Úkol č. 7 - Řešení
 
-Vytvořte nový úkol a aktualizujte seznam úkolů
-
 A nakonec upravíme komponentu `src/todomvc/client/tasks/components.cljs`:
 
 ```clojure
@@ -1570,14 +1692,16 @@ A nakonec upravíme komponentu `src/todomvc/client/tasks/components.cljs`:
                 :auto-focus true
                 :value new-task ;; <-- nastavíme hodnotu z DB
                 :on-key-up #(when (= KeyCodes/ENTER (.-keyCode %))
-                              (re-frame/dispatch [:tasks/create-task])) ;; <-- odešleme úkol na enter
-                :on-change #(re-frame/dispatch [:tasks/update-new-task (-> % .-target .-value)])}]]
+                              (re-frame/dispatch [:tasks/create-task]))
+                              ;; <-- odešleme úkol na enter
+                :on-change #(re-frame/dispatch [:tasks/update-new-task
+                                                (-> % .-target .-value)])}]]
       (when (seq tasks)
         [main tasks])]]))
 ```
 --
 
-### SPA s Re-frame a Reagent - Validace vstupu
+### SPA s Re-frame a Reagent - Validace
 
 Využijeme kód na validaci z backendu a přesuneme schema do `cljc` souboru `src/todomvc/tasks/schemas.cljc`:
 
@@ -1593,13 +1717,13 @@ Využijeme kód na validaci z backendu a přesuneme schema do `cljc` souboru `sr
 
 --
 
-### SPA s Re-frame a Reagent - Validace vstupu
+### SPA s Re-frame a Reagent - Validace
 
 Upravíme handler `src/todomvc/client/tasks/events.cljs`:
 
 ```clojure
+(ns todomvc.client.tasks.events
   (:require
-    ...
     [struct.core :as st]
     [todomvc.client.tasks.middlewares :as m]
     [todomvc.tasks.schemas :refer [Task]]))
@@ -1614,7 +1738,7 @@ Upravíme handler `src/todomvc/client/tasks/events.cljs`:
 ```
 --
 
-### SPA s Re-frame a Reagent - Validace vstupu
+### SPA s Re-frame a Reagent - Validace
 
 Middleware na odesílání zabalíme do podmínky `src/todomvc/client/tasks/middlewares.cljs`:
 
@@ -1631,7 +1755,7 @@ Middleware na odesílání zabalíme do podmínky `src/todomvc/client/tasks/midd
 
 --
 
-### SPA s Re-frame a Reagent - Validace vstupu
+### SPA s Re-frame a Reagent - Validace
 
 A drobně upravíme komponentu `src/todomvc/client/tasks/components.cljs`:
 
@@ -1651,11 +1775,11 @@ A drobně upravíme komponentu `src/todomvc/client/tasks/components.cljs`:
                 :value new-task
                 :on-key-up #(when (= KeyCodes/ENTER (.-keyCode %))
                               (re-frame/dispatch [:tasks/create-task]))
-                :on-change #(re-frame/dispatch [:tasks/update-new-task (-> % .-target .-value)])}]
+                :on-change #(re-frame/dispatch [:tasks/update-new-task
+                                                (-> % .-target .-value)])}]
        (when error ;; <-- a zobrazíme ji
          [:div {:style {:color "red", :text-align "center"}} error])]
-      (when (seq tasks)
-        [main tasks])]]))
+      (when (seq tasks) [main tasks])]]))
 ```
 
 --
@@ -1683,5 +1807,3 @@ A drobně upravíme komponentu `src/todomvc/client/tasks/components.cljs`:
 * Naimplementujte dokončení úkolu
 * Naimplementujte odstranění úkolu
 * Naimplementujte editaci názvu úkolu
-
---

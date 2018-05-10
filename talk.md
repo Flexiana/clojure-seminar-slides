@@ -1255,6 +1255,411 @@ Přidáme nové routy `src/todomvc/handler/site.clj`:
 * Produkční build `lein min-app`
 --
 
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+Upravíme `src/todomvc/client/main.cljs`:
+
+```clojure
+(ns todomvc.client.main
+  (:require
+    [reagent.core :as reagent]
+    [re-frame.core :as re-frame]
+    [todomvc.client.events]
+    [todomvc.client.subs] ;; <-- musíme někde naimportovat, jinak se nezaregistrují
+    [todomvc.client.tasks.components :as components]
+    [todomvc.client.tasks.events])) ;; <-- musíme někde naimportovat, jinak se nezaregistrují
+
+
+(def init-db ;; <-- výchozí stav DB
+  {:tasks {:list nil
+           :new-task nil}})
+
+
+(defn- main
+  []
+  (reagent/create-class
+    {:display-name
+     "main"
+
+     :component-will-mount ;; <-- klasický React event handler
+     #(re-frame/dispatch [:tasks/get-tasks])
+
+     :reagent-render
+     (fn []
+       (let [app (re-frame/subscribe [:app])] ;; <-- náš jediný subscriber na celou DB
+         (fn []
+           (components/todomvc-wrapper @app))))})) ;; <-- musí se dereferencovat! nechceme používat atom
+
+
+(defn ^:export init
+  []
+  (let [app-element (.getElementById js/document "app")]
+    (re-frame/dispatch-sync [:init-db init-db]) ;; <-- nastavení výchozí DB při startu
+    (re-frame/clear-subscription-cache!)
+    (reagent/render [main] app-element)))
+```
+
+--
+
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+Vytvoříme subscriber na DB `src/todomvc/client/subs.cljs`:
+
+```clojure
+(ns todomvc.client.subs
+  (:require
+    [re-frame.core :as re-frame]))
+
+
+(re-frame/reg-sub
+  :app
+  identity)
+```
+--
+
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+Vytvoříme handler na nastavení DB `src/todomvc/client/events.cljs`:
+
+```clojure
+(ns todomvc.client.events
+  (:require
+    [re-frame.core :as re-frame]))
+
+
+(re-frame/reg-event-db
+  :init-db
+  (fn [_ [_ init-db]]
+    init-db))
+```
+
+--
+
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+Vytvoříme handler na získání úkolů `src/todomvc/client/tasks/events.cljs`:
+
+```clojure
+(ns todomvc.client.tasks.events
+  (:require
+    [re-frame.core :as re-frame]
+    [todomvc.client.tasks.middlewares :as m]))
+
+
+(re-frame/reg-event-db
+  :tasks/get-tasks
+  [m/get-tasks] ;; <-- side effect je mimo logiku
+  (fn [db _]
+    db)) ;; <-- neměníme stav aplikace
+
+
+(re-frame/reg-event-db
+  :tasks/handle-get-tasks
+  (fn [db [_ tasks]]
+    (assoc-in db [:tasks :list] tasks))) ;; <-- nastavíme úkoly do DB
+
+
+(re-frame/reg-event-db
+  :tasks/handle-error-get-tasks
+  (fn [db [_ response]]
+    db)) ;; <-- zde bychom mohli nastavit třeba nějakou zprávu, kterou pak zobrazíme
+```
+
+--
+
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+Vytvoříme middleware na získání úkolů `src/todomvc/client/tasks/middlewares.cljs`:
+
+```clojure
+(ns todomvc.client.tasks.middlewares
+  (:require
+    [ajax.core :refer [GET]]
+    [re-frame.core :as re-frame]))
+
+
+(def get-tasks
+  (re-frame/after ;; <-- side effect zabalíme do `after` middlewaru
+    (fn [db _]
+      (GET "/api/tasks"
+           :format :json
+           :response-format :json
+           :keywords? true
+           :handler #(re-frame/dispatch [:tasks/handle-get-tasks %]) ;; <-- odešleme událost se seznamem úkolů
+           :error-handler #(re-frame/dispatch [:tasks/handle-error-get-tasks %])))))
+```
+--
+
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+A nakonec upravíme výpis úkolů `src/todomvc/client/tasks/components.cljs`:
+
+```clojure
+(ns todomvc.client.tasks.components)
+
+(defn todo-list
+  [tasks]
+  [:ul.todo-list
+   (for [task tasks] ;; <-- renderujeme sekvenci
+     ^{:key (:id task)} ;; <-- každý element v sekvenci musí mít unikátní ID (vyžaduje React)
+     [:li
+      [:div.view
+       [:input {:type "checkbox", :class "toggle"}]
+       [:label (:title task)]
+       [:button.destroy]]
+      [:input {:type "text", :class "edit", :id (str "task-" (:id tasks))}]])])
+
+(defn main
+  [tasks]
+  [:section.main
+   [:input {:type "checkbox"
+            :name "toggle"
+            :class "toggle-all"
+            :id "toggle-all"}]
+   [:label {:for "toggle-all"} "Mark all as complete"]
+   [todo-list tasks]])
+
+(defn todomvc-wrapper
+  [db]
+  (let [tasks (-> db :tasks :list)]
+    [:div.todomvc-wrapper
+     [:section.todoapp
+      [:header.header
+       [:h1 "todos"]
+       [:input {:class "new-todo"
+                :placeholder "What needs to be done?"
+                :auto-focus true}]]
+      (when (seq tasks)
+        [main tasks])]]))
+```
+
+--
+
+### SPA s Re-frame a Reagent - Výpis úkolů
+
+* Teď stačí aktualizovat stránku a měli byste vidět seznam úkolů z vaší DB
+* Pokud nechcete k=od opisovat, stačí se přepnout na tag `task-list`
+
+--
+
+### SPA s Re-frame a Reagent - Příprava na 7. úkol
+
+Handler na bindování hodnoty z inputu do DB `src/todomvc/client/tasks/events.cljs`:
+
+```clojure
+(re-frame/reg-event-db
+  :tasks/update-new-task
+  (fn [db [_ title]]
+    (assoc-in db [:tasks :new-task] title)))
+```
+
+--
+
+### SPA s Re-frame a Reagent - Příprava na 7. úkol
+
+Ještě musíme vyhodit událost při změně inputu `src/todomvc/client/tasks/components.cljs`:
+
+```clojure
+(ns todomvc.client.tasks.components
+  (:require
+    [goog.events.KeyCodes :as KeyCodes]
+    [re-frame.core :as re-frame]))
+
+(defn todomvc-wrapper
+  [db]
+  (let [tasks (-> db :tasks :list)]
+    [:div.todomvc-wrapper
+     [:section.todoapp
+      [:header.header
+       [:h1 "todos"]
+       [:input {:class "new-todo"
+                :placeholder "What needs to be done?"
+                :auto-focus true
+                :on-key-up #(when (= KeyCodes/ENTER (.-keyCode %))
+                              (js/console.log % "Enter")) ;; <-- vyhodíme událost při zmáčknutí enteru
+                :on-change #(re-frame/dispatch [:tasks/update-new-task (-> % .-target .-value)])}]]
+;; <-- vyhodíme událost na on-change
+      (when (seq tasks)
+        [main tasks])]]))
+```
+
+--
+
+### SPA s Re-frame a Reagent - Úkol č. 7
+
+Vytvořte nový úkol a aktualizujte seznam úkolů
+
+Nápověda: Odeslání POST požadavku
+
+```clojure
+(POST "/api/tasks"
+  :params request-body
+  ...
+```
+
+--
+
+### SPA s Re-frame a Reagent - Úkol č. 7 - Řešení
+
+Vytvořte nový úkol a aktualizujte seznam úkolů
+
+Vytvoříme handlery `src/todomvc/client/tasks/events.cljs`:
+
+```clojure
+(re-frame/reg-event-db
+  :tasks/create-task
+  [m/create-task]
+  (fn [db _]
+    db))
+
+
+(re-frame/reg-event-db
+  :tasks/handle-create-task
+  [m/get-tasks]
+  (fn [db _]
+    (assoc-in db [:tasks :new-task] nil))) ;; <-- vymaže input
+
+
+(re-frame/reg-event-db
+  :tasks/handle-error-create-task
+  (fn [db [_ response]]
+    db))
+```
+
+--
+
+### SPA s Re-frame a Reagent - Úkol č. 7 - Řešení
+
+Vytvořte nový úkol a aktualizujte seznam úkolů
+
+Vytvoříme middleware na odeslání nového úkolu `src/todomvc/client/tasks/middlewares.cljs`:
+
+```clojure
+(def create-task
+  (re-frame/after
+    (fn [db _]
+      (POST "/api/tasks"
+            :params {:title (-> db :tasks :new-task)}
+            :format :json
+            :response-format :json
+            :keywords? true
+            :handler #(re-frame/dispatch [:tasks/handle-create-task %])
+            :error-handler #(re-frame/dispatch [:tasks/handle-error-create-task %])))))
+```
+
+--
+
+
+### SPA s Re-frame a Reagent - Úkol č. 7 - Řešení
+
+Vytvořte nový úkol a aktualizujte seznam úkolů
+
+A nakonec upravíme komponentu `src/todomvc/client/tasks/components.cljs`:
+
+```clojure
+(defn todomvc-wrapper
+  [db]
+  (let [tasks (-> db :tasks :list)
+        new-task (-> db :tasks :new-task)]
+    [:div.todomvc-wrapper
+     [:section.todoapp
+      [:header.header
+       [:h1 "todos"]
+       [:input {:class "new-todo"
+                :placeholder "What needs to be done?"
+                :auto-focus true
+                :value new-task ;; <-- nastavíme hodnotu z DB
+                :on-key-up #(when (= KeyCodes/ENTER (.-keyCode %))
+                              (re-frame/dispatch [:tasks/create-task])) ;; <-- odešleme úkol na enter
+                :on-change #(re-frame/dispatch [:tasks/update-new-task (-> % .-target .-value)])}]]
+      (when (seq tasks)
+        [main tasks])]]))
+```
+--
+
+### SPA s Re-frame a Reagent - Validace vstupu
+
+Využijeme kód na validaci z backendu a přesuneme schema do `cljc` souboru `src/todomvc/tasks/schemas.cljc`:
+
+```clojure
+(ns todomvc.tasks.schemas
+  (:require
+    [struct.core :as st]))
+
+(def Task
+  {:title [st/required]
+   :description [st/string]})
+```
+
+--
+
+### SPA s Re-frame a Reagent - Validace vstupu
+
+Upravíme handler `src/todomvc/client/tasks/events.cljs`:
+
+```clojure
+  (:require
+    ...
+    [struct.core :as st]
+    [todomvc.client.tasks.middlewares :as m]
+    [todomvc.tasks.schemas :refer [Task]]))
+
+
+ (re-frame/reg-event-db
+   :tasks/create-task
+   [m/create-task]
+   (fn [db _]
+    (let [[errors model] (st/validate {:title (-> db :tasks :new-task)} Task)]
+      (assoc-in db [:tasks :errors] errors)))) ;; <-- nastavíme chyby do DB
+```
+--
+
+### SPA s Re-frame a Reagent - Validace vstupu
+
+Middleware na odesílání zabalíme do podmínky `src/todomvc/client/tasks/middlewares.cljs`:
+
+```clojure
+(def create-task
+   (re-frame/after
+     (fn [db _]
+      (when (-> db :tasks :errors nil?)
+        (POST "/api/tasks"
+              :params {:title (-> db :tasks :new-task)}
+              :format :json
+              ...
+```
+
+--
+
+### SPA s Re-frame a Reagent - Validace vstupu
+
+A drobně upravíme komponentu `src/todomvc/client/tasks/components.cljs`:
+
+```clojure
+(defn todomvc-wrapper
+  [db]
+  (let [tasks (-> db :tasks :list)
+        new-task (-> db :tasks :new-task)
+        error (-> db :tasks :errors :title)] ;; <-- vytáhneme si chybu
+    [:div.todomvc-wrapper
+     [:section.todoapp
+      [:header.header
+       [:h1 "todos"]
+       [:input {:class "new-todo"
+                :placeholder "What needs to be done?"
+                :auto-focus true
+                :value new-task
+                :on-key-up #(when (= KeyCodes/ENTER (.-keyCode %))
+                              (re-frame/dispatch [:tasks/create-task]))
+                :on-change #(re-frame/dispatch [:tasks/update-new-task (-> % .-target .-value)])}]
+       (when error ;; <-- a zobrazíme ji
+         [:div {:style {:color "red", :text-align "center"}} error])]
+      (when (seq tasks)
+        [main tasks])]]))
+```
+
+--
+
 
 ### Reference
 
@@ -1268,3 +1673,15 @@ Přidáme nové routy `src/todomvc/handler/site.clj`:
 * [https://github.com/Day8/re-frame](https://github.com/Day8/re-frame)
 * [https://reagent-project.github.io/](https://reagent-project.github.io/)
 * [https://github.com/razum2um/awesome-clojure](https://github.com/razum2um/awesome-clojure)
+
+--
+
+### Další úkoly
+
+* Dodělejte patičku podle [http://todomvc.com](http://todomvc.com)
+* Naimplementujte filtery v patičce
+* Naimplementujte dokončení úkolu
+* Naimplementujte odstranění úkolu
+* Naimplementujte editaci názvu úkolu
+
+--

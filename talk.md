@@ -29,7 +29,6 @@ style: style.css
 * REST a Compojure
 * Testování
 * SPA s Re-frame a Reagent (development stack)
-* Funkční ukázka propojení všech technologií na příkladu
 
 --
 
@@ -503,7 +502,7 @@ Vygeneruje handlery pro `/example/foo` a `/example/bar`
 
 * Vygenerujte projekt `duct` šablony:
 ```sh
-lein new duct todomvc +api +cljs +example +postgres +site
+lein new duct todomvc +api +example +postgres
 cd todomvc
 lein duct setup
 ```
@@ -1084,7 +1083,6 @@ Restartujeme server `(reset)` a pustíme testy `(test)`
 
 --
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ### ClojureScript + ReactJS = Reagent
 
@@ -1155,6 +1153,108 @@ Subscriber
 ```
 
 --
+
+### SPA s Re-frame a Reagent - Konfigurace
+
+Upravíme `resources/todomvc/config.edn`:
+
+```clojure
+ :duct.middleware.web/defaults {:static {:resources "todomvc/public"}} ;; <-- přidáme, servírování static. souborů
+
+  :duct.router/cascading
+ [#ig/ref :todomvc.handler/api
+  #ig/ref :todomvc.handler/site] ;; <-- přidáme další routy
+
+ :todomvc.handler/site {} ;; <-- přidáme
+```
+
+--
+
+### SPA s Re-frame a Reagent - Konfigurace
+
+Vytvoříme index stránku `resources/todomvc/pages/index.html`:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Example Handler</title>
+  </head>
+  <body>
+    <div id="app"><h1>Loading...</h1></div>
+    <script src="/js/main.js"></script>
+    <script>todomvc.client.main.init()</script>
+  </body>
+</html>
+```
+
+--
+
+### SPA s Re-frame a Reagent - Konfigurace
+
+Přidáme vstupný bod pro vývoj `dev/src/client.cljs`:
+
+```clojure
+(ns dev.client
+  (:require
+    [figwheel.client :as fw]
+    [re-frisk.core :refer [enable-re-frisk!]]
+    [todomvc.client.main]))
+
+(enable-console-print!)
+(enable-re-frisk!)
+
+
+(fw/start {:on-jsload todomvc.client.main/init
+           :websocket-url "ws://localhost:3449/figwheel-ws"}) ;; <-- nastaví hot reload
+```
+
+--
+
+### SPA s Re-frame a Reagent - Konfigurace
+
+Přidáme vstupní bod pro CLJS `src/todomvc/client/main.cljs`:
+
+```clojure
+(ns todomvc.client.main)
+
+(defn ^:export init
+  []
+  (let [app-element (.getElementById js/document "app")]
+    (js/console.log "CLJS!" app-element)))
+```
+--
+
+### SPA s Re-frame a Reagent - Konfigurace
+
+Přidáme nové routy `src/todomvc/handler/site.clj`:
+
+```clojure
+(ns todomvc.handler.site
+  (:require
+    [compojure.core :refer [GET]]
+    [integrant.core :as ig]
+    [ring.util.response :as response]))
+
+(defmethod ig/init-key :todomvc.handler/site
+  [_ conf]
+  (GET "/" [:as request]
+    (response/content-type
+      (response/resource-response "todomvc/pages/index.html") ;; <-- vrátíme statickou stránku
+      "text/html")))
+```
+
+--
+
+### SPA s Re-frame a Reagent - Konfigurace
+
+* Konfigurace v `project.clj` je trochu větší, přepněte se na další krok `git reset --hard cljs-konfigurace`
+* Restartujeme REPL a server `(dev)`, `(reset)` a spustíme CLJS build `(figwheel-repl/start-figwheel!)`
+* V konzoli by se mělo objevit něco jako `Successfully compiled build :dev to "resources/todomvc/public/js/main.js" in 2.999 seconds.`
+* Otevřeme prohlížeč [http://localhost:3000](http://localhost:3000/)
+* Produkční build `lein min-app`
+--
+
 
 ### Reference
 

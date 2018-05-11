@@ -513,6 +513,9 @@ Vygeneruje handlery pro `/example/foo` a `/example/bar`
 
 ### Úkol č. 2
 
+* Pro celý seminář je připraven vzorový projekt
+  [https://github.com/Flexiana/clojure-seminar-todomvc](https://github.com/Flexiana/clojure-seminar-todomvc), ve kterém
+se můžete přepínat pomocí tagů
 * Vygenerujte projekt `duct` šablony:
 ```sh
 lein new duct todomvc +api +example +postgres
@@ -1549,7 +1552,7 @@ A nakonec upravíme výpis úkolů `src/todomvc/client/tasks/components.cljs`:
 ### SPA s Re-frame a Reagent - Výpis úkolů
 
 * Teď stačí aktualizovat stránku a měli byste vidět seznam úkolů z vaší DB
-* Pokud nechcete k=od opisovat, stačí se přepnout na tag `task-list`
+* Pokud nechcete kód opisovat, stačí se přepnout na tag `task-list`
 
 --
 

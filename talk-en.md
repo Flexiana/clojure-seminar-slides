@@ -510,6 +510,9 @@ Generates handlers for `/example/foo` and `/example/bar`
 
 ### Task No. 2
 
+* For this seminar there is a sample project
+  [https://github.com/Flexiana/clojure-seminar-todomvc](https://github.com/Flexiana/clojure-seminar-todomvc) and you can
+switch into a current step by git tags
 * Generate a projects from a template `duct`:
 ```sh
 lein new duct todomvc +api +example +postgres

@@ -1,5 +1,5 @@
-Clojure Full-stack aplikace
-===========================
+Clojure Full-stack application
+==============================
 
 This is a presentation for a Clojure seminar.
 

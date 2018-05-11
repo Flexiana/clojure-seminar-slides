@@ -17,6 +17,11 @@ style: style.css
 
 * [https://twitter.com/LukasRychtecky](https://twitter.com/LukasRychtecky)
 * [https://github.com/LukasRychtecky](https://github.com/LukasRychtecky)
+* Absolvent ČVUT FEL
+* Programuji cca 10 let
+* Java, CoffeeScript, Python
+* Poslední 2 roky Clojure/ClojureScript
+* Clean code
 
 --
 

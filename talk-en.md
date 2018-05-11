@@ -7,7 +7,7 @@ style: style.css
 
 --
 
-# Clojure Full-stack aplication
+# Clojure Full-stack application
 ## Lukáš Rychtecký
 ## [https://twitter.com/LukasRychtecky](https://twitter.com/LukasRychtecky)
 
@@ -17,6 +17,11 @@ style: style.css
 
 * [https://twitter.com/LukasRychtecky](https://twitter.com/LukasRychtecky)
 * [https://github.com/LukasRychtecky](https://github.com/LukasRychtecky)
+* Graduate CTU FEE
+* Programming circa 10 years
+* Java, CoffeeScript, Python
+* Last 2 years Clojure/ClojureScript
+* Clean code
 
 --
 

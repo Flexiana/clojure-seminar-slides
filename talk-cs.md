@@ -153,7 +153,7 @@ Jak to otestujeme?
 
 ### Motivace - Clojure
 
-* dynamický statický typový
+* dynamický silně typový
 * immutabilní struktury
 * pokročilá práce s kolekcemi (vector, linked list, set, hashmap)
 * paralelní programování
@@ -541,7 +541,7 @@ lein duct setup
 ### Úkol č. 2
 
 * Zkuste [http://localhost:3000/example](http://localhost:3000/example)
-* Vložte do konfigurace `todomvc.handler/api` novou hodnotu `:name` a tu vraťte v odpovědi.
+* Vložte do konfigurace `todomvc.handler/example` novou hodnotu `:name` a tu vraťte v odpovědi.
 * Vraťte v odpovědi URL a query parametr.
 
 --
@@ -552,7 +552,7 @@ lein duct setup
 
 ```clojure
 ...
- :todomvc.handler/api
+ :todomvc.handler/example
  {:db #ig/ref :duct.database/sql
   :name "Clojure"}}
 ```
@@ -562,7 +562,7 @@ lein duct setup
 ```clojure
 (defn handle-hello
   [conf]
-  (GET "/hello" [url-param query-param :as request]
+  (GET "/hello/:url-param" [url-param query-param :as request]
     (response/response (format "<h1>Hello %s, :param %s, :query-param %s</h1>"
                                (:name conf)
                                url-param
@@ -783,14 +783,14 @@ Poznámka: Ten \ tam být nemá, ale Markdown to nechce jinak zobrazit
 
 ```sql
 \-- :name create-task :<! :1
-insert into tasks (title, description) values (:title, :description)
+insert into tasks (title, description) values (:title, :description) returning *
 ```
 
 * V REPLu musím resetnout systém `(reset)` a reloadnout namespace `(require '[todomvc.tasks.db :as db] :reload)`
 
 ```clojure
 (db/create-task-sqlvec {:title "Umyt nadobi", :description "HNED!"})
-["insert into tasks (title, description) values ( ? , ? )" "Umyt nadobi" "HNED!"]
+["insert into tasks (title, description) values ( ? , ? ) returning *" "Umyt nadobi" "HNED!"]
 
 (db/create-task db-spec {:title "Umyt nadobi", :description "HNED!"})
 ```
@@ -1204,7 +1204,7 @@ Handler + side effect
 * "klasický" handler na události
 
 ```clojure
-(register-handler
+(reg-db-event
   (after write-to-log) ; <-- side effect, zůstává mimo hlavní logiku
   :set-name
   (fn [db [_ name]]
@@ -1220,10 +1220,10 @@ Subscriber
 * pohled na data
 
 ```clojure
-(register-sub
+(reg-sub
   :name
   (fn [db _]
-    (reaction (get @db :name))))
+    (:name db))))
 ```
 
 --

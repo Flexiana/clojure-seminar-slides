@@ -153,7 +153,7 @@ How could we test this?
 
 ### Motivation - Clojure
 
-* dynamically and statically typed
+* dynamic strong typed
 * immutabilní struktury
 * advanced collections (vector, linked list, set, hashmap)
 * parallel programming
@@ -538,7 +538,7 @@ lein duct setup
 ### Task No. 2
 
 * Try [http://localhost:3000/example](http://localhost:3000/example)
-* Put into a configuration `todomvc.handler/api` new value `:name` and return it in a response
+* Put into a configuration `todomvc.handler/example` new value `:name` and return it in a response
 * Return in a response a URL parameter and a query parameter
 
 --
@@ -549,7 +549,7 @@ lein duct setup
 
 ```clojure
 ...
- :todomvc.handler/api
+ :todomvc.handler/example
  {:db #ig/ref :duct.database/sql
   :name "Clojure"}}
 ```
@@ -559,8 +559,8 @@ lein duct setup
 ```clojure
 (defn handle-hello
   [conf]
-  (GET "/hello" [url-param query-param :as request]
-    (response/response (format "<h1>Hello %s, :param %s, :query-param %s</h1>"
+  (GET "/hello/:url-param" [url-param query-param :as request]
+    (response/response (format "<h1>Hello %s, :url-param %s, :query-param %s</h1>"
                                (:name conf)
                                url-param
                                query-param))))
@@ -779,14 +779,14 @@ Note: Backslash \ must not be in a real file, it's here just because of Markdown
 
 ```sql
 \-- :name create-task :<! :1
-insert into tasks (title, description) values (:title, :description)
+insert into tasks (title, description) values (:title, :description) returning *
 ```
 
 * You have to reset the system `(reset)` and reload the namespace `(require '[todomvc.tasks.db :as db] :reload)`
 
 ```clojure
 (db/create-task-sqlvec {:title "Umyt nadobi", :description "HNED!"})
-["insert into tasks (title, description) values ( ? , ? )" "Umyt nadobi" "HNED!"]
+["insert into tasks (title, description) values ( ? , ? ) returning *" "Umyt nadobi" "HNED!"]
 
 (db/create-task db-spec {:title "Umyt nadobi", :description "HNED!"})
 ```
@@ -1195,7 +1195,7 @@ A handler + side effect
 * a "classic" handler for events
 
 ```clojure
-(register-handler
+(reg-event-db
   (after write-to-log) ; <-- side effect, out of a logic
   :set-name
   (fn [db [_ name]]
@@ -1211,10 +1211,10 @@ Subscriber
 * a cursor/view on data
 
 ```clojure
-(register-sub
+(reg-sub
   :name
   (fn [db _]
-    (reaction (get @db :name))))
+    (:name db)))
 ```
 
 --
